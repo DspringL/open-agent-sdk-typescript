@@ -6,3 +6,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.publish
+
+# 私服临时认证文件（禁止提交）
+.npmrc-private
