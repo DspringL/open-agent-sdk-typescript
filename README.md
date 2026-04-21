@@ -1,92 +1,501 @@
-# agent-sdk
+# Open Agent SDK (TypeScript)
 
+[![npm version](https://img.shields.io/npm/v/@codeany/open-agent-sdk)](https://www.npmjs.com/package/@codeany/open-agent-sdk)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
+Open-source Agent SDK that runs the full agent loop **in-process** — no subprocess or CLI required. Supports both **Anthropic** and **OpenAI-compatible** APIs. Deploy anywhere: cloud, serverless, Docker, CI/CD.
 
-## Getting started
+Also available in **Go**: [open-agent-sdk-go](https://github.com/codeany-ai/open-agent-sdk-go)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Get started
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.hanokl.com/ai/agent-sdk.git
-git branch -M main
-git push -uf origin main
+```bash
+npm install @codeany/open-agent-sdk
 ```
 
-## Integrate with your tools
+Set your API key:
 
-- [ ] [Set up project integrations](https://gitlab.hanokl.com/ai/agent-sdk/-/settings/integrations)
+```bash
+export CODEANY_API_KEY=your-api-key
+```
 
-## Collaborate with your team
+### OpenAI-compatible models
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+Works with OpenAI, DeepSeek, Qwen, Mistral, or any OpenAI-compatible endpoint:
 
-## Test and Deploy
+```bash
+export CODEANY_API_TYPE=openai-completions
+export CODEANY_API_KEY=sk-...
+export CODEANY_BASE_URL=https://api.openai.com/v1
+export CODEANY_MODEL=gpt-4o
+```
 
-Use the built-in continuous integration in GitLab.
+### Third-party Anthropic-compatible providers
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+export CODEANY_BASE_URL=https://openrouter.ai/api
+export CODEANY_API_KEY=sk-or-...
+export CODEANY_MODEL=anthropic/claude-sonnet-4
+```
 
-***
+## Quick start
 
-# Editing this README
+### One-shot query (streaming)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```typescript
+import { query } from "@codeany/open-agent-sdk";
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+for await (const message of query({
+  prompt: "Read package.json and tell me the project name.",
+  options: {
+    allowedTools: ["Read", "Glob"],
+    permissionMode: "bypassPermissions",
+  },
+})) {
+  if (message.type === "assistant") {
+    for (const block of message.message.content) {
+      if ("text" in block) console.log(block.text);
+    }
+  }
+}
+```
 
-## Name
-Choose a self-explaining name for your project.
+### Simple blocking prompt
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```typescript
+import { createAgent } from "@codeany/open-agent-sdk";
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+const agent = createAgent({ model: "claude-sonnet-4-6" });
+const result = await agent.prompt("What files are in this project?");
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+console.log(result.text);
+console.log(
+  `Turns: ${result.num_turns}, Tokens: ${result.usage.input_tokens + result.usage.output_tokens}`,
+);
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### OpenAI / GPT models
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```typescript
+import { createAgent } from "@codeany/open-agent-sdk";
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+const agent = createAgent({
+  apiType: "openai-completions",
+  model: "gpt-4o",
+  apiKey: "sk-...",
+  baseURL: "https://api.openai.com/v1",
+});
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+const result = await agent.prompt("What files are in this project?");
+console.log(result.text);
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+The `apiType` is auto-detected from model name — models containing `gpt-`, `o1`, `o3`, `deepseek`, `qwen`, `mistral`, etc. automatically use `openai-completions`.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### Multi-turn conversation
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```typescript
+import { createAgent } from "@codeany/open-agent-sdk";
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+const agent = createAgent({ maxTurns: 5 });
+
+const r1 = await agent.prompt(
+  'Create a file /tmp/hello.txt with "Hello World"',
+);
+console.log(r1.text);
+
+const r2 = await agent.prompt("Read back the file you just created");
+console.log(r2.text);
+
+console.log(`Session messages: ${agent.getMessages().length}`);
+```
+
+### Custom tools (Zod schema)
+
+```typescript
+import { z } from "zod";
+import { query, tool, createSdkMcpServer } from "@codeany/open-agent-sdk";
+
+const getWeather = tool(
+  "get_weather",
+  "Get the temperature for a city",
+  { city: z.string().describe("City name") },
+  async ({ city }) => ({
+    content: [{ type: "text", text: `${city}: 22°C, sunny` }],
+  }),
+);
+
+const server = createSdkMcpServer({ name: "weather", tools: [getWeather] });
+
+for await (const msg of query({
+  prompt: "What is the weather in Tokyo?",
+  options: { mcpServers: { weather: server } },
+})) {
+  if (msg.type === "result")
+    console.log(`Done: $${msg.total_cost_usd?.toFixed(4)}`);
+}
+```
+
+### Custom tools (low-level)
+
+```typescript
+import {
+  createAgent,
+  getAllBaseTools,
+  defineTool,
+} from "@codeany/open-agent-sdk";
+
+const calculator = defineTool({
+  name: "Calculator",
+  description: "Evaluate a math expression",
+  inputSchema: {
+    type: "object",
+    properties: { expression: { type: "string" } },
+    required: ["expression"],
+  },
+  isReadOnly: true,
+  async call(input) {
+    const result = Function(`'use strict'; return (${input.expression})`)();
+    return `${input.expression} = ${result}`;
+  },
+});
+
+const agent = createAgent({ tools: [...getAllBaseTools(), calculator] });
+const r = await agent.prompt("Calculate 2**10 * 3");
+console.log(r.text);
+```
+
+### Skills
+
+Skills are reusable prompt templates that extend agent capabilities. Five bundled skills are included: `simplify`, `commit`, `review`, `debug`, `test`.
+
+```typescript
+import {
+  createAgent,
+  registerSkill,
+  getAllSkills,
+} from "@codeany/open-agent-sdk";
+
+// Register a custom skill
+registerSkill({
+  name: "explain",
+  description: "Explain a concept in simple terms",
+  userInvocable: true,
+  async getPrompt(args) {
+    return [
+      {
+        type: "text",
+        text: `Explain in simple terms: ${args || "Ask what to explain."}`,
+      },
+    ];
+  },
+});
+
+console.log(`${getAllSkills().length} skills registered`);
+
+// The model can invoke skills via the Skill tool
+const agent = createAgent();
+const result = await agent.prompt('Use the "explain" skill to explain git rebase');
+console.log(result.text);
+```
+
+### Hooks (lifecycle events)
+
+```typescript
+import { createAgent, createHookRegistry } from "@codeany/open-agent-sdk";
+
+const hooks = createHookRegistry({
+  PreToolUse: [
+    {
+      handler: async (input) => {
+        console.log(`About to use: ${input.toolName}`);
+        // Return { block: true } to prevent tool execution
+      },
+    },
+  ],
+  PostToolUse: [
+    {
+      handler: async (input) => {
+        console.log(`Tool ${input.toolName} completed`);
+      },
+    },
+  ],
+});
+```
+
+20 lifecycle events: `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PermissionRequest`, `PermissionDenied`, `TaskCreated`, `TaskCompleted`, `ConfigChange`, `CwdChanged`, `FileChanged`, `Notification`, `PreCompact`, `PostCompact`, `TeammateIdle`.
+
+### MCP server integration
+
+```typescript
+import { createAgent } from "@codeany/open-agent-sdk";
+
+const agent = createAgent({
+  mcpServers: {
+    filesystem: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+    },
+  },
+});
+
+const result = await agent.prompt("List files in /tmp");
+console.log(result.text);
+await agent.close();
+```
+
+### Subagents
+
+```typescript
+import { query } from "@codeany/open-agent-sdk";
+
+for await (const msg of query({
+  prompt: "Use the code-reviewer agent to review src/index.ts",
+  options: {
+    agents: {
+      "code-reviewer": {
+        description: "Expert code reviewer",
+        prompt: "Analyze code quality. Focus on security and performance.",
+        tools: ["Read", "Glob", "Grep"],
+      },
+    },
+  },
+})) {
+  if (msg.type === "result") console.log("Done");
+}
+```
+
+### Permissions
+
+```typescript
+import { query } from "@codeany/open-agent-sdk";
+
+// Read-only agent — can only analyze, not modify
+for await (const msg of query({
+  prompt: "Review the code in src/ for best practices.",
+  options: {
+    allowedTools: ["Read", "Glob", "Grep"],
+    permissionMode: "dontAsk",
+  },
+})) {
+  // ...
+}
+```
+
+### Web UI
+
+A built-in web chat interface is included for testing:
+
+```bash
+npx tsx examples/web/server.ts
+# Open http://localhost:8081
+```
+
+## API reference
+
+### Top-level functions
+
+| Function                              | Description                                                    |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `query({ prompt, options })`          | One-shot streaming query, returns `AsyncGenerator<SDKMessage>` |
+| `createAgent(options)`                | Create a reusable agent with session persistence               |
+| `tool(name, desc, schema, handler)`   | Create a tool with Zod schema validation                       |
+| `createSdkMcpServer({ name, tools })` | Bundle tools into an in-process MCP server                     |
+| `defineTool(config)`                  | Low-level tool definition helper                               |
+| `getAllBaseTools()`                   | Get all 35+ built-in tools                                     |
+| `registerSkill(definition)`           | Register a custom skill                                        |
+| `getAllSkills()`                       | Get all registered skills                                      |
+| `createProvider(apiType, opts)`        | Create an LLM provider directly                                |
+| `createHookRegistry(config)`          | Create a hook registry for lifecycle events                    |
+| `listSessions()`                      | List persisted sessions                                        |
+| `forkSession(id)`                     | Fork a session for branching                                   |
+
+### Agent methods
+
+| Method                          | Description                                           |
+| ------------------------------- | ----------------------------------------------------- |
+| `agent.query(prompt)`           | Streaming query, returns `AsyncGenerator<SDKMessage>` |
+| `agent.prompt(text)`            | Blocking query, returns `Promise<QueryResult>`        |
+| `agent.getMessages()`           | Get conversation history                              |
+| `agent.clear()`                 | Reset session                                         |
+| `agent.interrupt()`             | Abort current query                                   |
+| `agent.setModel(model)`         | Change model mid-session                              |
+| `agent.setPermissionMode(mode)` | Change permission mode                                |
+| `agent.getApiType()`            | Get current API type                                  |
+| `agent.close()`                 | Close MCP connections, persist session                |
+
+### Options
+
+| Option               | Type                                    | Default                | Description                                                          |
+| -------------------- | --------------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| `apiType`            | `string`                                | auto-detected          | `'anthropic-messages'` or `'openai-completions'`                     |
+| `model`              | `string`                                | `claude-sonnet-4-6`    | LLM model ID                                                         |
+| `apiKey`             | `string`                                | `CODEANY_API_KEY`      | API key                                                              |
+| `baseURL`            | `string`                                | —                      | Custom API endpoint                                                  |
+| `cwd`                | `string`                                | `process.cwd()`        | Working directory                                                    |
+| `systemPrompt`       | `string`                                | —                      | System prompt override                                               |
+| `appendSystemPrompt` | `string`                                | —                      | Append to default system prompt                                      |
+| `tools`              | `ToolDefinition[]`                      | All built-in           | Available tools                                                      |
+| `allowedTools`       | `string[]`                              | —                      | Tool allow-list                                                      |
+| `disallowedTools`    | `string[]`                              | —                      | Tool deny-list                                                       |
+| `permissionMode`     | `string`                                | `bypassPermissions`    | `default` / `acceptEdits` / `dontAsk` / `bypassPermissions` / `plan` |
+| `canUseTool`         | `function`                              | —                      | Custom permission callback                                           |
+| `maxTurns`           | `number`                                | `10`                   | Max agentic turns                                                    |
+| `maxBudgetUsd`       | `number`                                | —                      | Spending cap                                                         |
+| `thinking`           | `ThinkingConfig`                        | `{ type: 'adaptive' }` | Extended thinking                                                    |
+| `effort`             | `string`                                | `high`                 | Reasoning effort: `low` / `medium` / `high` / `max`                  |
+| `mcpServers`         | `Record<string, McpServerConfig>`       | —                      | MCP server connections                                               |
+| `agents`             | `Record<string, AgentDefinition>`       | —                      | Subagent definitions                                                 |
+| `hooks`              | `Record<string, HookCallbackMatcher[]>` | —                      | Lifecycle hooks                                                      |
+| `resume`             | `string`                                | —                      | Resume session by ID                                                 |
+| `continue`           | `boolean`                               | `false`                | Continue most recent session                                         |
+| `persistSession`     | `boolean`                               | `true`                 | Persist session to disk                                              |
+| `sessionId`          | `string`                                | auto                   | Explicit session ID                                                  |
+| `outputFormat`       | `{ type: 'json_schema', schema }`       | —                      | Structured output                                                    |
+| `sandbox`            | `SandboxSettings`                       | —                      | Filesystem/network sandbox                                           |
+| `settingSources`     | `SettingSource[]`                       | —                      | Load AGENT.md, project settings                                      |
+| `env`                | `Record<string, string>`                | —                      | Environment variables                                                |
+| `abortController`    | `AbortController`                       | —                      | Cancellation controller                                              |
+
+### Environment variables
+
+| Variable             | Description                                              |
+| -------------------- | -------------------------------------------------------- |
+| `CODEANY_API_KEY`    | API key (required)                                       |
+| `CODEANY_API_TYPE`   | `anthropic-messages` (default) or `openai-completions`   |
+| `CODEANY_MODEL`      | Default model override                                   |
+| `CODEANY_BASE_URL`   | Custom API endpoint                                      |
+| `CODEANY_AUTH_TOKEN` | Alternative auth token                                   |
+
+## Built-in tools
+
+| Tool                                       | Description                                  |
+| ------------------------------------------ | -------------------------------------------- |
+| **Bash**                                   | Execute shell commands                       |
+| **Read**                                   | Read files with line numbers                 |
+| **Write**                                  | Create / overwrite files                     |
+| **Edit**                                   | Precise string replacement in files          |
+| **Glob**                                   | Find files by pattern                        |
+| **Grep**                                   | Search file contents with regex              |
+| **WebFetch**                               | Fetch and parse web content                  |
+| **WebSearch**                              | Search the web                               |
+| **NotebookEdit**                           | Edit Jupyter notebook cells                  |
+| **Agent**                                  | Spawn subagents for parallel work            |
+| **Skill**                                  | Invoke registered skills                     |
+| **TaskCreate/List/Update/Get/Stop/Output** | Task management system                       |
+| **TeamCreate/Delete**                      | Multi-agent team coordination                |
+| **SendMessage**                            | Inter-agent messaging                        |
+| **EnterWorktree/ExitWorktree**             | Git worktree isolation                       |
+| **EnterPlanMode/ExitPlanMode**             | Structured planning workflow                 |
+| **AskUserQuestion**                        | Ask the user for input                       |
+| **ToolSearch**                             | Discover lazy-loaded tools                   |
+| **ListMcpResources/ReadMcpResource**       | MCP resource access                          |
+| **CronCreate/Delete/List**                 | Scheduled task management                    |
+| **RemoteTrigger**                          | Remote agent triggers                        |
+| **LSP**                                    | Language Server Protocol (code intelligence) |
+| **Config**                                 | Dynamic configuration                        |
+| **TodoWrite**                              | Session todo list                            |
+
+## Bundled skills
+
+| Skill        | Description                                                    |
+| ------------ | -------------------------------------------------------------- |
+| `simplify`   | Review changed code for reuse, quality, and efficiency         |
+| `commit`     | Create a git commit with a well-crafted message                |
+| `review`     | Review code changes for correctness, security, and performance |
+| `debug`      | Systematic debugging using structured investigation            |
+| `test`       | Run tests and analyze failures                                 |
+
+Register custom skills with `registerSkill()`.
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   Your Application                    │
+│                                                       │
+│   import { createAgent } from '@codeany/open-agent-sdk' │
+└────────────────────────┬─────────────────────────────┘
+                         │
+              ┌──────────▼──────────┐
+              │       Agent         │  Session state, tool pool,
+              │  query() / prompt() │  MCP connections, hooks
+              └──────────┬──────────┘
+                         │
+              ┌──────────▼──────────┐
+              │    QueryEngine      │  Agentic loop:
+              │   submitMessage()   │  API call → tools → repeat
+              └──────────┬──────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+   ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
+   │  Provider  │  │  35 Tools │  │    MCP     │
+   │ Anthropic  │  │ Bash,Read │  │  Servers   │
+   │  OpenAI    │  │ Edit,...  │  │ stdio/SSE/ │
+   │ DeepSeek   │  │ + Skills  │  │ HTTP/SDK   │
+   └───────────┘  └───────────┘  └───────────┘
+```
+
+**Key internals:**
+
+| Component             | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| **Provider layer**    | Abstracts Anthropic / OpenAI API differences                       |
+| **QueryEngine**       | Core agentic loop with auto-compact, retry, tool orchestration     |
+| **Skill system**      | Reusable prompt templates with 5 bundled skills                    |
+| **Hook system**       | 20 lifecycle events integrated into the engine                     |
+| **Auto-compact**      | Summarizes conversation when context window fills up               |
+| **Micro-compact**     | Truncates oversized tool results                                   |
+| **Retry**             | Exponential backoff for rate limits and transient errors            |
+| **Token estimation**  | Rough token counting with pricing for Claude, GPT, DeepSeek models |
+| **File cache**        | LRU cache (100 entries, 25 MB) for file reads                      |
+| **Session storage**   | Persist / resume / fork sessions on disk                           |
+| **Context injection** | Git status + AGENT.md automatically injected into system prompt    |
+
+## Examples
+
+| #   | File                                  | Description                            |
+| --- | ------------------------------------- | -------------------------------------- |
+| 01  | `examples/01-simple-query.ts`         | Streaming query with event handling    |
+| 02  | `examples/02-multi-tool.ts`           | Multi-tool orchestration (Glob + Bash) |
+| 03  | `examples/03-multi-turn.ts`           | Multi-turn session persistence         |
+| 04  | `examples/04-prompt-api.ts`           | Blocking `prompt()` API                |
+| 05  | `examples/05-custom-system-prompt.ts` | Custom system prompt                   |
+| 06  | `examples/06-mcp-server.ts`           | MCP server integration                 |
+| 07  | `examples/07-custom-tools.ts`         | Custom tools with `defineTool()`       |
+| 08  | `examples/08-official-api-compat.ts`  | `query()` API pattern                  |
+| 09  | `examples/09-subagents.ts`            | Subagent delegation                    |
+| 10  | `examples/10-permissions.ts`          | Read-only agent with tool restrictions |
+| 11  | `examples/11-custom-mcp-tools.ts`     | `tool()` + `createSdkMcpServer()`      |
+| 12  | `examples/12-skills.ts`              | Skill system usage                     |
+| 13  | `examples/13-hooks.ts`               | Lifecycle hooks                        |
+| 14  | `examples/14-openai-compat.ts`       | OpenAI / DeepSeek models               |
+| web | `examples/web/`                       | Web chat UI for testing                |
+
+Run any example:
+
+```bash
+npx tsx examples/01-simple-query.ts
+```
+
+Start the web UI:
+
+```bash
+npx tsx examples/web/server.ts
+```
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=codeany-ai%2Fopen-agent-sdk-typescript&type=timeline&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=codeany-ai/open-agent-sdk-typescript&type=timeline&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=codeany-ai/open-agent-sdk-typescript&type=timeline&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=codeany-ai/open-agent-sdk-typescript&type=timeline&legend=top-left" />
+ </picture>
+</a>
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT
